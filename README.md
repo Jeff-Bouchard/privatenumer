@@ -1,8 +1,20 @@
-# ENUM Backend for Antisip Android App
+# Privateness.network ENUM Backend
 
-Flask-based ENUM (RFC 6116) implementation using Emercoin NVS blockchain for decentralized E.164 phone number to SIP URI resolution.
+## The Decentralized VoIP Revolution
 
-## Architecture
+### Antisip + Emercoin NVS: Privateness.network's Secret Weapon
+
+This is how Privateness.network achieves **truly decentralized VoIP** - no DNS servers, no ENUM registrars, no centralized infrastructure. Just blockchain-verified phone number to SIP URI mapping using Emercoin's battle-tested Name-Value Storage.
+
+**What makes this different:**
+
+- ❌ **No DNS servers** - Emercoin NVS replaces ENUM DNS entirely
+- **No registrars** - Direct blockchain registration, ~$0.10/year per number
+- **No ICANN** - Decentralized namespace, censorship-resistant
+- **Gibson's Ultra-High Entropy PRNG** - Military-grade randomness via `pyuheprng`
+- **Emercoin RC4OK** - Dual-layer entropy for `random.trust_cpu=off` deployments
+- **Blockchain-verified** - Cryptographic proof of number ownership
+- **Global replication** - Thousands of Emercoin nodes worldwide
 
 ```text
 ┌─────────────┐         ┌──────────────┐         ┌─────────────┐
@@ -113,22 +125,26 @@ GET /enum/list
 - **[enum-server/README.md](enum-server/README.md)** - Complete API reference and deployment guide
 - **[enum-server/QUICKSTART.md](enum-server/QUICKSTART.md)** - Quick setup commands
 - **[enum-server/DEPLOYMENT.md](enum-server/DEPLOYMENT.md)** - Production deployment on Raspberry Pi
-- **[enum-server/SMS_SETUP.md](enum-server/SMS_SETUP.md)** - Optional SMS gateway for 2FA verification
 - **[enum-server/SECURITY_HARDENING.md](enum-server/SECURITY_HARDENING.md)** - ⚠️ Advanced security hardening (kernel RNG, system hardening)
+- **[enum-server/SIM_GATEWAY.md](enum-server/SIM_GATEWAY.md)** - 📱 Optional: 3G/4G/5G modem integration for SMS/cellular fallback
+- **[enum-server/SMS_SETUP.md](enum-server/SMS_SETUP.md)** - Optional SMS gateway for 2FA verification
 
 ## Troubleshooting
 
 Check backend logs:
+
 ```bash
 sudo journalctl -u enum-backend -f
 ```
 
 Check Emercoin sync status:
+
 ```bash
 emercoin-cli getinfo
 ```
 
 Test Emercoin NVS connectivity:
+
 ```bash
 emercoin-cli name_filter "enum:" 10
 ```

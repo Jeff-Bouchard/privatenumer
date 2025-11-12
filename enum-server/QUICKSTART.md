@@ -9,6 +9,7 @@ sudo ./setup.sh
 ## Essential Commands
 
 ### Service Management
+
 ```bash
 sudo systemctl status enum-backend    # Check status
 sudo systemctl start enum-backend     # Start
@@ -18,6 +19,7 @@ journalctl -u enum-backend -f         # View logs
 ```
 
 ### Emercoin Operations
+
 ```bash
 emercoin-cli getinfo                  # Node status
 emercoin-cli name_show "enum:..."     # Query record
@@ -25,6 +27,7 @@ emercoin-cli walletpassphrase "pass" 300  # Unlock wallet
 ```
 
 ### Register ENUM Record
+
 ```bash
 # Format: +1234567890 -> enum:0.9.8.7.6.5.4.3.2.1.e164.arpa
 emercoin-cli name_new \
@@ -34,6 +37,7 @@ emercoin-cli name_new \
 ```
 
 ### Test Endpoints
+
 ```bash
 curl http://localhost:8080/health
 curl "http://localhost:8080/enum/lookup?number=%2B1234567890"
@@ -42,7 +46,8 @@ curl http://localhost:8080/enum/list
 
 ## Antisip Configuration
 
-**Settings → Network → ENUM**
+### Settings → Network → ENUM
+
 - ENUM Server: `http://YOUR-PI-IP:8080/enum/lookup?number=`
 - ENUM Domain: `e164.arpa`
 - Enable ENUM: ✓
@@ -60,18 +65,21 @@ curl http://localhost:8080/enum/list
 ## Common Issues
 
 ### Port 8080 in Use
+
 ```bash
 sudo ss -tlnp | grep 8080
 sudo kill <PID>
 ```
 
 ### Emercoin Not Synced
+
 ```bash
 emercoin-cli getinfo | grep blocks
 # Wait for sync to complete
 ```
 
 ### Health Check Fails
+
 ```bash
 # Check if Emercoin is running
 systemctl status emercoin
@@ -103,16 +111,20 @@ journalctl -u enum-backend -n 50
 ## API Quick Reference
 
 ### GET /health
+
 Returns: Service health and Emercoin connection status
 
 ### GET /enum/lookup?number=+1234567890
+
 Returns: SIP URI and NAPTR records for phone number
 
 ### POST /enum/register
+
 Body: `{"phone_number": "+123...", "sip_uri": "sip:..."}`
 Returns: Transaction ID (requires unlocked wallet)
 
 ### GET /enum/list
+
 Returns: All ENUM records in NVS
 
 ## Security Checklist

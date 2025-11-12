@@ -40,6 +40,7 @@ sudo ./setup.sh
 ```
 
 The setup script will:
+
 - Install Python dependencies
 - Configure systemd service
 - Start the backend
@@ -222,6 +223,7 @@ sudo systemctl restart ddclient
 ### Port Forwarding
 
 On your router, forward:
+
 - **Port 80** → Raspberry Pi (for Let's Encrypt)
 - **Port 443** → Raspberry Pi (for HTTPS)
 - **Port 8080** → Raspberry Pi (if not using NGINX)
@@ -283,12 +285,14 @@ sudo reboot
 ```
 
 **Verify after reboot:**
+
 ```bash
 cat /proc/cmdline | grep random.trust_cpu
 dmesg | grep -i random
 ```
 
 **Consequences:**
+
 - ✅ **Security**: System will not trust potentially compromised CPU RNG
 - ⚠️ **Blocking Behavior**: System WILL BLOCK if insufficient entropy available
 - ⚠️ **Boot Time**: May significantly increase boot time while gathering entropy
@@ -538,17 +542,20 @@ ab -n 1000 -c 10 "http://localhost:8080/health"
 ## Cost Analysis
 
 ### Hardware
+
 - **Raspberry Pi 4 (4GB)**: $55
 - **SD Card (64GB)**: $10
 - **Case + Power**: $15
 - **Total**: ~$80
 
 ### Operating Costs
+
 - **Power**: 3W × 24h × 30 days × $0.12/kWh = **$0.26/month**
 - **Bandwidth**: Negligible for home network
 - **Domain (optional)**: $10-15/year
 
 ### Emercoin Costs
+
 - **ENUM Registration**: ~0.01 EMC (~$0.10)
 - **Annual Renewal**: ~0.005 EMC (~$0.05)
 - **1000 numbers**: ~10 EMC (~$10/year)
@@ -570,7 +577,7 @@ ab -n 1000 -c 10 "http://localhost:8080/health"
 
 ## Support Resources
 
-- **Emercoin Docs**: https://emercoin.com/documentation
-- **RFC 6116 (ENUM)**: https://tools.ietf.org/html/rfc6116
-- **Antisip Support**: https://antisip.com/support
+- **Emercoin Docs**: <https://emercoin.com/documentation>
+- **RFC 6116 (ENUM)**: <https://tools.ietf.org/html/rfc6116>
+- **Antisip Support**: <https://antisip.com/support>
 - **This Project**: [GitHub/Support URL]
