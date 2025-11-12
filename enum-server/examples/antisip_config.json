@@ -1,0 +1,38 @@
+{
+  "_comment": "Example Antisip configuration for ENUM backend",
+  "enum": {
+    "enabled": true,
+    "server_url": "http://192.168.1.100:8080/enum/lookup?number=",
+    "domain": "e164.arpa",
+    "timeout_ms": 5000,
+    "cache_ttl_seconds": 3600,
+    "fallback_to_direct": true
+  },
+  "sip": {
+    "account": {
+      "username": "your_username",
+      "password": "your_password",
+      "domain": "your_sip_domain.com",
+      "proxy": "sip:your_sip_domain.com:5060",
+      "transport": "UDP"
+    },
+    "codecs": [
+      "opus",
+      "g722",
+      "pcmu",
+      "pcma"
+    ]
+  },
+  "network": {
+    "stun_servers": [
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302"
+    ],
+    "ice_enabled": true
+  },
+  "security": {
+    "srtp_enabled": true,
+    "tls_enabled": false,
+    "verify_server_cert": false
+  }
+}
