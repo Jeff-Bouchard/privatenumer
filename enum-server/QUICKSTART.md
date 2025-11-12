@@ -84,7 +84,7 @@ journalctl -u enum-backend -n 50
 | Use Case | NAPTR Value |
 |----------|-------------|
 | Single SIP URI | `"!^.*$!sip:user@domain.com!"` |
-| Primary + Backup | `"!^.*$!sip:primary@domain.com!\|!^.*$!sip:backup@domain.com!"` |
+| Primary + Backup | `"!^.*$!sip:primary@domain.com!"\|"!^.*$!sip:backup@domain.com!"` |
 | Voice Only | `"!^.*$!sip:user@domain.com!u"` |
 | Video Call | `"!^.*$!sip:user@domain.com!v"` |
 
@@ -123,6 +123,11 @@ Returns: All ENUM records in NVS
 - [ ] SSL/TLS for public access
 - [ ] Regular wallet backups
 - [ ] Strong RPC credentials
+- [ ] **ADVANCED**: Kernel hardening (`random.trust_cpu=off`) - ✅ Uses Gibson's pyuheprng + Emercoin RC4OK
+
+**ℹ️ `random.trust_cpu=off` - Entropy Handled**
+
+This project uses **Gibson's Ultra-High Entropy PRNG** (`pyuheprng`) + **Emercoin Core's embedded RC4OK** for entropy management. No shortage issues. See `DEPLOYMENT.md` and `SECURITY_HARDENING.md` for implementation details.
 
 ## Performance Tips
 

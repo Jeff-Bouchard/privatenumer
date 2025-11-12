@@ -1,83 +1,134 @@
-# ENUM Backend for Antisip Android App on Raspberry Pi
+# ENUM Backend for Antisip Android App
 
-This project sets up an ENUM (E.164 Number Mapping) backend on a Raspberry Pi with a SIM adapter, integrated with Emercoin core node for DNS/ENUM services.
+Flask-based ENUM (RFC 6116) implementation using Emercoin NVS blockchain for decentralized E.164 phone number to SIP URI resolution.
+
+## Architecture
+
+```text
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   Antisip   │──HTTP──→│ ENUM Backend │──RPC───→│  Emercoin   │
+│   Android   │         │    Flask     │         │  NVS Chain  │
+└─────────────┘         └──────────────┘         └─────────────┘
+```
 
 ## Prerequisites
 
-1. Raspberry Pi with Raspberry Pi OS (32-bit or 64-bit)
-2. Emercoin Core Node installed and synchronized
-3. 3G/4G USB dongle with SIM card
-4. Static public IP or dynamic DNS setup
+1. Raspberry Pi with Raspberry Pi OS (or any Linux system)
+2. Emercoin Core Node (`emercoind`) installed and synchronized
+3. Python 3.7+
+4. `emercoin-cli` accessible in PATH or at `/usr/local/bin/emercoin-cli`
+5. Gibson's Ultra-High Entropy PRNG (`pyuheprng`) - installed automatically via requirements.txt
 
-## Installation
+## Quick Installation
 
-1. Install required packages:
-   ```bash
-   sudo apt update
-   sudo apt install -y kamailio kamailio-json kamailio-tls-modules kamailio-utils
-   ```
+```bash
+cd enum-server
+sudo ./setup.sh
+```
 
-2. Configure Kamailio (see `etc/kamailio/kamailio.cfg`)
+The script will:
 
-3. Set up Emercoin NVS records for ENUM (see `scripts/setup_enum_records.sh`)
+- Verify Emercoin installation and connectivity
+- Install Python dependencies (Flask, flask-cors)
+- Create systemd service (`enum-backend.service`)
+- Configure firewall for port 8080
+- Start the ENUM backend
 
-4. Configure the SIM adapter (see `scripts/setup_sim_adapter.sh`)
+## Manual Installation
 
-5. Configure Antisip Android app to use your ENUM service
+```bash
+cd enum-server
+pip3 install -r requirements.txt
+python3 enum_backend.py --host 0.0.0.0 --port 8080
+```
 
 ## Configuration
 
-### Kamailio ENUM Configuration
-Edit `/etc/kamailio/kamailio.cfg` to include ENUM lookup:
+### Antisip Android App
 
+Configure Antisip to use your ENUM backend:
+
+- **ENUM Server URL**: `http://your-server-ip:8080/enum/lookup?number=`
+- Antisip will query this endpoint before placing calls
+
+### Register ENUM Records in Emercoin NVS
+
+```bash
+# Format: +1234567890 -> enum:0.9.8.7.6.5.4.3.2.1.e164.arpa
+emercoin-cli name_new \
+  "enum:0.9.8.7.6.5.4.3.2.1.e164.arpa" \
+  '"!^.*$!sip:user@domain.com!"' \
+  365
 ```
-# Load ENUM module
-loadmodule "enum.so"
 
-# ENUM lookup route
-route[ENUM_LOOKUP] {
-    if (is_uri_user_e164()) {
-        if (enum_query("e164.arpa", "E2U+sip", "")) {
-            xlog("ENUM lookup successful for $rU");
-            route(RELAY);
-            exit;
-        }
+**Record Format:**
+
+- **Key**: `enum:<reversed-digits>.e164.arpa`
+- **Value**: NAPTR record `"!^.*$!sip:uri!"`
+- **TTL**: Days (365 = 1 year)
+
+## API Endpoints
+
+### Lookup ENUM Record
+
+```bash
+GET /enum/lookup?number=+1234567890
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "phone_number": "+1234567890",
+  "sip_uri": "sip:user@domain.com",
+  "naptr_records": [
+    {
+      "order": 100,
+      "preference": 10,
+      "service": "E2U+sip",
+      "replacement": "sip:user@domain.com"
     }
+  ],
+  "enum_domain": "0.9.8.7.6.5.4.3.2.1.e164.arpa",
+  "expires_in": 12345,
+  "owner_address": "EAddr..."
 }
 ```
 
-### Emercoin NVS Records
-Create ENUM records in Emercoin NVS:
+### Health Check
 
 ```bash
-./emercoin-cli name_new dns/e164/1/2/3/4/5/6/7/8/9/0/e164.arpa. "e2u+sip:example.com" "e2u+tel:tel:+1234567890"
+GET /health
 ```
 
-## Usage
+### List All ENUM Records
 
-1. Start Kamailio service:
-   ```bash
-   sudo systemctl start kamailio
-   ```
+```bash
+GET /enum/list
+```
 
-2. Test ENUM lookup:
-   ```bash
-   kamcmd enum.query 1.2.3.4.5.6.7.8.9.0.e164.arpa
-   ```
+## Documentation
 
-3. Configure Antisip Android app:
-   - Set SIP server to your Raspberry Pi's IP
-   - Enable ENUM lookup
-   - Set ENUM domain to `e164.arpa`
+- **[enum-server/README.md](enum-server/README.md)** - Complete API reference and deployment guide
+- **[enum-server/QUICKSTART.md](enum-server/QUICKSTART.md)** - Quick setup commands
+- **[enum-server/DEPLOYMENT.md](enum-server/DEPLOYMENT.md)** - Production deployment on Raspberry Pi
+- **[enum-server/SMS_SETUP.md](enum-server/SMS_SETUP.md)** - Optional SMS gateway for 2FA verification
+- **[enum-server/SECURITY_HARDENING.md](enum-server/SECURITY_HARDENING.md)** - ⚠️ Advanced security hardening (kernel RNG, system hardening)
 
 ## Troubleshooting
 
-Check Kamailio logs:
+Check backend logs:
 ```bash
-sudo journalctl -u kamailio -f
+sudo journalctl -u enum-backend -f
 ```
 
-Check Emercoin debug log:
+Check Emercoin sync status:
 ```bash
-tail -f ~/.emercoin/debug.log
+emercoin-cli getinfo
+```
+
+Test Emercoin NVS connectivity:
+```bash
+emercoin-cli name_filter "enum:" 10
 ```

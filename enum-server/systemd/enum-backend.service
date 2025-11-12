@@ -2,7 +2,7 @@
 Description=ENUM Backend Server for Antisip (Emercoin NVS)
 After=network.target emercoin.service
 Requires=emercoin.service
-Documentation=https://enum.org https://emercoin.com
+Documentation=https://enumer.org https://emercoin.com
 
 [Service]
 Type=simple

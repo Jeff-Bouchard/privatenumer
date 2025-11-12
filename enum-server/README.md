@@ -1,6 +1,6 @@
 # ENUM Backend for Antisip on Raspberry Pi with Emercoin NVS
 
-Complete implementation of RFC 6116 (ENUM) using Emercoin's Name-Value Storage (NVS) blockchain for decentralized telephone number to SIP URI mapping.
+RFC 6116-based ENUM implementation using Emercoin's Name-Value Storage (NVS) blockchain for decentralized telephone number to SIP URI mapping. Uses simplified NAPTR format optimized for Emercoin NVS.
 
 ## Architecture
 

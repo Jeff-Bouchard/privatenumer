@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ENUM Backend for Antisip using Emercoin NVS
-Implements RFC 6116 (ENUM) over Emercoin blockchain
+RFC 6116-based ENUM implementation with simplified NAPTR format for Emercoin NVS
 """
 
 import subprocess

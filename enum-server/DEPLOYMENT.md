@@ -256,6 +256,63 @@ sudo apt install unattended-upgrades
 sudo dpkg-reconfigure -plow unattended-upgrades
 ```
 
+### Kernel Hardening (Advanced)
+
+> **⚠️ CRITICAL WARNING ⚠️**
+>
+> **THIS MODIFICATION WILL CAUSE YOUR SYSTEM TO BLOCK RATHER THAN PERFORM UNSECURE OPERATIONS**
+>
+> The system may block during boot or operation if insufficient entropy is available. Only apply this if you understand the implications and have alternative entropy sources configured (e.g., hardware RNG, haveged).
+
+**Disable CPU Hardware RNG Trust:**
+
+The `random.trust_cpu=off` parameter forces the kernel to NOT trust CPU-provided entropy from RDRAND/RDSEED instructions. This is a security measure against potential hardware backdoors in CPU random number generators.
+
+```bash
+# Edit GRUB configuration
+sudo nano /etc/default/grub
+
+# Add to GRUB_CMDLINE_LINUX_DEFAULT:
+GRUB_CMDLINE_LINUX_DEFAULT="quiet random.trust_cpu=off"
+
+# Update GRUB
+sudo update-grub
+
+# Reboot required
+sudo reboot
+```
+
+**Verify after reboot:**
+```bash
+cat /proc/cmdline | grep random.trust_cpu
+dmesg | grep -i random
+```
+
+**Consequences:**
+- ✅ **Security**: System will not trust potentially compromised CPU RNG
+- ⚠️ **Blocking Behavior**: System WILL BLOCK if insufficient entropy available
+- ⚠️ **Boot Time**: May significantly increase boot time while gathering entropy
+- ⚠️ **Operation**: Random operations (TLS, SSH, key generation) may block
+
+**Entropy Sources for This Project:**
+
+This system uses **Gibson's Ultra-High Entropy PRNG** (`pyuheprng`) + **Emercoin Core's embedded RC4OK**.
+
+```bash
+# pyuheprng is already in requirements.txt and installed automatically
+# during setup.sh execution
+
+# Verify entropy pool (should maintain >3000 with pyuheprng + RC4OK)
+cat /proc/sys/kernel/random/entropy_avail
+
+# For generic systems without pyuheprng:
+# sudo apt install haveged
+# sudo systemctl enable haveged
+```
+
+**📖 For complete details, rollback procedures, monitoring, and additional kernel hardening, see:**
+**[SECURITY_HARDENING.md](SECURITY_HARDENING.md)** - Full kernel hardening guide
+
 ---
 
 ## Backup & Recovery

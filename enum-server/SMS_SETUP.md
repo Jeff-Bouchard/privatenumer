@@ -63,19 +63,23 @@ curl -X POST https://api.telnyx.com/v2/messages \
 
 **Integration with ENUM:**
 
+> **Note:** SMS integration is a separate component. The current `enum_backend.py` only parses standard NAPTR format. JSON format below is a proposed enhancement not yet implemented.
+
 ```python
-# In enum_backend.py, add SMS endpoint reference
+# sms_gateway.py runs as separate service
 
 from sms_gateway import TelnyxGateway, SMSManager
 
 sms_manager = SMSManager()
 telnyx = TelnyxGateway("YOUR_TELNYX_API_KEY")
 sms_manager.add_gateway("telnyx", telnyx)
+```
 
-# Register in Emercoin NVS
+**Standard ENUM Record (Current):**
+```bash
 emercoin-cli name_new \
   "enum:0.9.8.7.6.5.4.3.2.1.e164.arpa" \
-  '{"voice":"sip:user@domain.com","sms":"telnyx:+1234567890"}' \
+  '"!^.*$!sip:user@domain.com!"' \
   365
 ```
 
@@ -261,14 +265,17 @@ For non-US numbers:
 
 ### Enhanced ENUM Record Format
 
+> **Note:** JSON format is a proposed feature NOT yet implemented in enum_backend.py
+
 ```bash
-# Old format (voice only)
+# Current format (NAPTR - implemented)
 emercoin-cli name_new \
   "enum:0.9.8.7.6.5.4.3.2.1.e164.arpa" \
   '"!^.*$!sip:user@domain.com!"' \
   365
 
-# New format (voice + SMS)
+# Proposed format (JSON - NOT YET IMPLEMENTED)
+# This would require modifying enum_backend.py parse_naptr_record()
 emercoin-cli name_new \
   "enum:0.9.8.7.6.5.4.3.2.1.e164.arpa" \
   '{
