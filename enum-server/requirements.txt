@@ -3,3 +3,4 @@ flask-cors==4.0.0
 werkzeug==2.3.7
 requests==2.31.0
 git+https://github.com/ness-network/pyuheprng.git
+cryptography

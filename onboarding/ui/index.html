@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privateness Network Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="container">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">🛰️</div>
+        <div class="title">Privateness Network</div>
+        <div class="subtitle">PrivateNumer • Dark Mode</div>
+      </div>
+      <ol id="steps" class="steps">
+        <li data-step="1" class="step active"><span class="badge">1</span> Identity <span class="achv" id="achv-1">🔒</span></li>
+        <li data-step="2" class="step"><span class="badge">2</span> Blind Listing <span class="achv" id="achv-2">🕶️</span></li>
+        <li data-step="3" class="step"><span class="badge">3</span> Secure Messaging <span class="achv" id="achv-3">✉️</span></li>
+        <li data-step="4" class="step"><span class="badge">4</span> RANDPAY <span class="achv" id="achv-4">🎲</span></li>
+        <li data-step="5" class="step"><span class="badge">5</span> Gateway <span class="achv" id="achv-5">🌐</span></li>
+      </ol>
+      <div class="footer-note">Use Git Bash on Windows. All commands are Linux/macOS compatible.</div>
+    </aside>
+
+    <main class="panel">
+      <header class="panel-header">
+        <h1 id="panel-title">Step 1 — Identity</h1>
+        <div class="status"><span id="progress">0</span>/5 unlocked</div>
+      </header>
+
+      <section id="content" class="content">
+        <!-- dynamic content injected by app.js -->
+      </section>
+
+      <footer class="panel-footer">
+        <button id="prev" class="btn ghost" disabled>← Prev</button>
+        <button id="mark-done" class="btn success">Mark Step Done ✅</button>
+        <button id="next" class="btn primary">Next →</button>
+      </footer>
+    </main>
+  </div>
+
+  <template id="tpl-step-1">
+    <div class="card">
+      <h2>🔐 Generate identity (PrivatenessTools)</h2>
+      <p>Run in Git Bash (Windows) or any POSIX shell:</p>
+      <div class="cmd">
+        <code>./keygen user &lt;username&gt; 5</code>
+        <button class="copy" data-copy="./keygen user &lt;username&gt; 5">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>./key worm ~/.privateness-keys/&lt;username&gt;.key.json</code>
+        <button class="copy" data-copy="./key worm ~/.privateness-keys/&lt;username&gt;.key.json">Copy</button>
+      </div>
+      <h3>🐳 Publish WORM to EmerNVS</h3>
+      <div class="cmd">
+        <code>emercoin-cli walletpassphrase "your-pass" 300</code>
+        <button class="copy" data-copy="emercoin-cli walletpassphrase &quot;your-pass&quot; 300">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>emercoin-cli name_new "worm:user:ness:&lt;username&gt;" '&lt;WORM_XML_ESCAPED&gt;' 365</code>
+        <button class="copy" data-copy="emercoin-cli name_new &quot;worm:user:ness:&lt;username&gt;&quot; '&lt;WORM_XML_ESCAPED&gt;' 365">Copy</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-step-2">
+    <div class="card">
+      <h2>🕶️ Create blind listing</h2>
+      <p>Compose your off‑chain JSON, compute SHA‑256, then publish minimal on‑chain JSON:</p>
+      <div class="cmd">
+        <code>{"worm_ref":"worm:user:ness:&lt;username&gt;","commitment":"&lt;sha256hex&gt;","capabilities":7,"rev":1}</code>
+        <button class="copy" data-copy='{"worm_ref":"worm:user:ness:<username>","commitment":"<sha256hex>","capabilities":7,"rev":1}'>Copy</button>
+      </div>
+      <div class="cmd">
+        <code>emercoin-cli name_new "ness:sms:listing:&lt;opaque_id&gt;" '&lt;MINIMAL_JSON&gt;' 365</code>
+        <button class="copy" data-copy="emercoin-cli name_new &quot;ness:sms:listing:&lt;opaque_id&gt;&quot; '&lt;MINIMAL_JSON&gt;' 365">Copy</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-step-3">
+    <div class="card">
+      <h2>✉️ Secure messaging (ptool, keyfile mode)</h2>
+      <div class="cmd">
+        <code>python tools/ptool_encrypt.py --peer-pub-keyfile ~/.privateness-keys/renter.key.json --peer-pub-field x25519.public --in sms.txt --out sms.enc</code>
+        <button class="copy" data-copy="python tools/ptool_encrypt.py --peer-pub-keyfile ~/.privateness-keys/renter.key.json --peer-pub-field x25519.public --in sms.txt --out sms.enc">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>python tools/ptool_sign.py --priv-keyfile ~/.privateness-keys/provider.key.json --priv-field ed25519.private --in sms.enc --out sms.sig</code>
+        <button class="copy" data-copy="python tools/ptool_sign.py --priv-keyfile ~/.privateness-keys/provider.key.json --priv-field ed25519.private --in sms.enc --out sms.sig">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>python tools/ptool_verify.py --pub-keyfile ~/.privateness-keys/provider.key.json --pub-field ed25519.public --in sms.enc --sig sms.sig</code>
+        <button class="copy" data-copy="python tools/ptool_verify.py --pub-keyfile ~/.privateness-keys/provider.key.json --pub-field ed25519.public --in sms.enc --sig sms.sig">Copy</button>
+      </div>
+      <div class="cmd">
+        <code>python tools/ptool_decrypt.py --priv-keyfile ~/.privateness-keys/renter.key.json --priv-field x25519.private --in sms.enc --out sms.txt</code>
+        <button class="copy" data-copy="python tools/ptool_decrypt.py --priv-keyfile ~/.privateness-keys/renter.key.json --priv-field x25519.private --in sms.enc --out sms.txt">Copy</button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-step-4">
+    <div class="card">
+      <h2>🎲 RANDPAY (1 EMC • 1/6 • 6h)</h2>
+      <div class="cmd"><code>emercoin-cli randpay_mkchap 1 6 21600</code><button class="copy" data-copy="emercoin-cli randpay_mkchap 1 6 21600">Copy</button></div>
+      <div class="cmd"><code>emercoin-cli randpay_mktx "&lt;chap&gt;" 21600 0</code><button class="copy" data-copy='emercoin-cli randpay_mktx "<chap>" 21600 0'>Copy</button></div>
+      <div class="cmd"><code>emercoin-cli randpay_accept "&lt;txhex&gt;" 2</code><button class="copy" data-copy='emercoin-cli randpay_accept "<txhex>" 2'>Copy</button></div>
+      <p class="hint">Expected cost per attempt ≈ 1/6 EMC. Rotate challenge after accept/timeout.</p>
+    </div>
+  </template>
+
+  <template id="tpl-step-5">
+    <div class="card">
+      <h2>🌐 Gateway connectivity</h2>
+      <ul class="bullets">
+        <li>HTTPS: <code>https://gateway.ness.cx</code></li>
+        <li>WSS: <code>wss://gateway.ness.cx/ws</code></li>
+        <li>EmerDNS mirrors: <code>https://gateway.private.ness</code>, <code>wss://gateway.private.ness/ws</code></li>
+      </ul>
+      <div class="cmd">
+        <code>python tools/ptool_conf.py</code>
+        <button class="copy" data-copy="python tools/ptool_conf.py">Copy</button>
+      </div>
+      <p class="hint">Confirms Emercoin RPC settings (local JSON-RPC only).</p>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
