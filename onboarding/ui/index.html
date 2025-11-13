@@ -39,10 +39,28 @@
 
       <footer class="panel-footer">
         <button id="prev" class="btn ghost" disabled>← Prev</button>
+        <button id="gen-step" class="btn">Generate step script 🧪</button>
+        <button id="gen-all" class="btn">Generate full script 🚀</button>
         <button id="mark-done" class="btn success">Mark Step Done ✅</button>
         <button id="next" class="btn primary">Next →</button>
       </footer>
     </main>
+  </div>
+
+  <!-- modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3 id="modal-title">Paste into Git Bash and press Enter</h3>
+        <button id="modal-close" class="btn ghost">✖</button>
+      </div>
+      <textarea id="script" class="script" spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button id="copy-script" class="btn">Copy to clipboard</button>
+        <a id="download-script" class="btn primary" download="privateness_onboarding.sh">Download .sh</a>
+      </div>
+      <p class="hint">Windows: open Git Bash. Linux/macOS: any terminal. Review prompts, then press Enter.</p>
+    </div>
   </div>
 
   <template id="tpl-step-1">
