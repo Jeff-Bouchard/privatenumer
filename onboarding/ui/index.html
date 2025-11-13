@@ -90,10 +90,41 @@
   <template id="tpl-step-2">
     <div class="card">
       <h2>🕶️ Create blind listing</h2>
+      <p><strong>Choose service tier:</strong></p>
+      <div class="tier-selector">
+        <label class="tier-option">
+          <input type="radio" name="tier" value="sms_only" checked>
+          <div class="tier-card">
+            <h3>📱 SMS-only</h3>
+            <p>Receive SMS for verification, 2FA, notifications</p>
+            <ul class="tier-features">
+              <li>✔️ Real SIM, non-VOIP</li>
+              <li>✔️ Instant delivery</li>
+              <li>✔️ Lower cost (~0.01 EMC/day)</li>
+              <li>❌ No voice/video calls</li>
+            </ul>
+            <code>capabilities: 11</code> (0x0B: non-voip + instant + SMS-only)
+          </div>
+        </label>
+        <label class="tier-option">
+          <input type="radio" name="tier" value="sms_voice_video">
+          <div class="tier-card">
+            <h3>📞 SMS+Voice/Video</h3>
+            <p>Full communication suite with SIP client</p>
+            <ul class="tier-features">
+              <li>✔️ All SMS-only features</li>
+              <li>✔️ Voice calls (inbound/outbound)</li>
+              <li>✔️ Video calls (H.264, VP8)</li>
+              <li>✔️ Real phone number assignment</li>
+            </ul>
+            <code>capabilities: 123</code> (0x7B: all features + voice + video + ENUM)
+          </div>
+        </label>
+      </div>
       <p>Compose your off‑chain JSON, compute SHA‑256, then publish minimal on‑chain JSON:</p>
       <div class="cmd">
-        <code>{"worm_ref":"worm:user:ness:&lt;username&gt;","commitment":"&lt;sha256hex&gt;","capabilities":7,"rev":1}</code>
-        <button class="copy" data-copy='{"worm_ref":"worm:user:ness:<username>","commitment":"<sha256hex>","capabilities":7,"rev":1}'>Copy</button>
+        <code>{"worm_ref":"worm:user:ness:&lt;username&gt;","commitment":"&lt;sha256hex&gt;","capabilities":11,"rev":1}</code>
+        <button class="copy" data-copy='{"worm_ref":"worm:user:ness:<username>","commitment":"<sha256hex>","capabilities":11,"rev":1}'>Copy</button>
       </div>
       <div class="cmd">
         <code>emercoin-cli name_new "ness:sms:listing:&lt;opaque_id&gt;" '&lt;MINIMAL_JSON&gt;' 365</code>

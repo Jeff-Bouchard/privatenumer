@@ -5,19 +5,18 @@
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │              Emercoin NVS Blockchain                    │
-│         (Decentralized Number Registry)                 │
+│         (Privacy-First Blind Listings)                  │
 │                                                          │
-│  sms:+1234567890 → {                                   │
-│    "owner": "EMC_address",                             │
-│    "pubkey": "cryptographic_public_key",               │
-│    "price_per_sms": "0.001 EMC",                       │
-│    "rental_rate": "0.01 EMC/day",                      │
-│    "status": "available|rented",                       │
-│    "reputation": 985,                                  │
-│    "gateway_url": "https://gateway.ness.cx",   │
-│    "last_seen": 1699564800,                            │
-│    "features": ["non-voip", "usa", "instant"]         │
+│  ness:sms:listing:<opaque_id> → {                      │
+│    "worm_ref": "worm:user:ness:provider123",          │
+│    "commitment": "<sha256_of_offchain_record>",       │
+│    "capabilities": 7,                                  │
+│    "rev": 1                                            │
 │  }                                                      │
+│                                                          │
+│  Off-chain signed record contains:                      │
+│  - Gateway endpoints, pricing, features                 │
+│  - Verified against commitment hash                     │
 └─────────────────────────────────────────────────────────┘
                             ↕
 ┌─────────────────────────────────────────────────────────┐
@@ -55,51 +54,86 @@
 
 ### 1. Blockchain Registry (Emercoin NVS)
 
-**Purpose:** Decentralized database of available phone numbers
+**Purpose:** Privacy-first blind listing registry with minimal on-chain footprint
 
-**Schema:**
+**On-chain schema (ness:sms:listing:<opaque_id>):**
 
 ```json
 {
-  "namespace": "sms:",
-  "key": "+1234567890",
+  "namespace": "ness:sms:listing:",
+  "key": "<opaque_id>",
   "value": {
-    "owner": "EMC_blockchain_address",
-    "pubkey": "ED25519_public_key",
-    "price_per_sms": "0.001",
-    "rental_daily": "0.01",
-    "rental_weekly": "0.05",
-    "rental_monthly": "0.15",
-    "status": "available",
-    "rented_to": null,
-    "rental_expires": null,
-    "reputation": 985,
-    "total_sms": 1250,
-    "successful_sms": 1230,
-    "failed_sms": 20,
-    "avg_delivery_time": 2.3,
-    "gateway_url": "https://gateway.example.com",
-    "features": ["non-voip", "usa", "instant", "telegram-forward"],
-    "last_seen": 1699564800,
-    "created": 1690000000
+    "worm_ref": "worm:user:ness:provider123",
+    "commitment": "<sha256hex_of_offchain_record>",
+    "capabilities": 7,
+    "rev": 1
   }
 }
 ```
 
+**Off-chain signed record (verified against commitment):**
+
+```json
+{
+  "provider_id": "provider123",
+  "service_tiers": {
+    "sms_only": {
+      "enabled": true,
+      "pricing": {
+        "per_sms": "0.001",
+        "rental_daily": "0.01",
+        "rental_weekly": "0.05",
+        "rental_monthly": "0.15"
+      }
+    },
+    "sms_voice_video": {
+      "enabled": true,
+      "pricing": {
+        "per_sms": "0.001",
+        "per_minute_voice": "0.01",
+        "per_minute_video": "0.02",
+        "rental_daily": "0.05",
+        "rental_weekly": "0.25",
+        "rental_monthly": "0.80"
+      },
+      "sip_endpoint": "sip:gateway@gateway.ness.cx",
+      "enum_support": true
+    }
+  },
+  "gateway_endpoints": {
+    "https": "https://gateway.ness.cx",
+    "wss": "wss://gateway.ness.cx/ws"
+  },
+  "features": ["non-voip", "usa", "instant"],
+  "reputation": 985,
+  "pubkey_encrypt": "<X25519_base64url>",
+  "pubkey_verify": "<Ed25519_base64url>",
+  "timestamp": 1699564800,
+  "signature": "<Ed25519_detached_sig>"
+}
+```
+
+**Service Tiers:**
+
+- **SMS-only:** Receive SMS for verification, 2FA, notifications. No voice/video. Lower cost.
+- **SMS+Voice/Video:** Full communication suite. Receive calls via SIP (Antisip, Linphone). Higher cost.
+
 **Operations:**
 
 ```bash
-# Register new number
-emercoin-cli name_new "sms:+1234567890" '{"owner":"EMCaddr","pubkey":"key",...}' 365
+# Register new blind listing (provider)
+OPAQUE_ID=$(uuidgen | tr -d '-' | head -c 16)
+MINIMAL_JSON='{"worm_ref":"worm:user:ness:provider123","commitment":"<sha256hex>","capabilities":7,"rev":1}'
+emercoin-cli name_new "ness:sms:listing:$OPAQUE_ID" "$MINIMAL_JSON" 365
 
-# Update availability
-emercoin-cli name_update "sms:+1234567890" '{"status":"rented","rented_to":"renter_key"}' 365
+# Query all blind listings
+emercoin-cli name_filter "ness:sms:listing:" 1000
 
-# Query available numbers
-emercoin-cli name_filter "sms:" 1000 | jq '.[] | select(.value.status=="available")'
+# Show specific listing
+emercoin-cli name_show "ness:sms:listing:<opaque_id>"
 
-# Check number reputation
-emercoin-cli name_show "sms:+1234567890" | jq '.value.reputation'
+# Verify off-chain record against commitment
+echo -n '<offchain_json>' | sha256sum  # must match commitment field
 ```
 
 ### 2. Provider Gateway Software
@@ -164,26 +198,56 @@ class PrivatenessProvider:
         self.state_machine.ReadConfig()
         self.state_machine.Init()
         
-    def register_number(self, phone_number, price_per_sms, rental_rates):
-        """Register number on Emercoin blockchain"""
-        nv_record = {
-            "owner": self.emc_address,
-            "pubkey": self.public_key.public_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PublicFormat.Raw
-            ).hex(),
-            "price_per_sms": price_per_sms,
-            "rental_daily": rental_rates['daily'],
-            "rental_weekly": rental_rates['weekly'],
-            "rental_monthly": rental_rates['monthly'],
-            "status": "available",
-            "gateway_url": f"https://{self.get_public_ip()}:8443",
-            "features": ["non-voip", "instant"]
+    def register_blind_listing(self, provider_id, price_per_sms, rental_rates):
+        """Register privacy-first blind listing on Emercoin blockchain"""
+        import hashlib
+        import uuid
+        
+        # Build off-chain signed record
+        offchain_record = {
+            "provider_id": provider_id,
+            "gateway_endpoints": {
+                "https": "https://gateway.ness.cx",
+                "wss": "wss://gateway.ness.cx/ws"
+            },
+            "pricing": {
+                "per_sms": price_per_sms,
+                "rental_daily": rental_rates['daily'],
+                "rental_weekly": rental_rates['weekly'],
+                "rental_monthly": rental_rates['monthly']
+            },
+            "features": ["non-voip", "instant"],
+            "pubkey_encrypt": self.x25519_pubkey_b64url,
+            "pubkey_verify": self.ed25519_pubkey_b64url,
+            "timestamp": int(time.time())
+        }
+        
+        # Sign off-chain record
+        canonical = json.dumps(offchain_record, separators=(',', ':'), sort_keys=True)
+        signature = self.private_key.sign(canonical.encode('utf-8'))
+        offchain_record['signature'] = base64.urlsafe_b64encode(signature).rstrip(b'=').decode()
+        
+        # Compute commitment
+        commitment = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+        
+        # Generate opaque ID
+        opaque_id = uuid.uuid4().hex[:16]
+        
+        # Minimal on-chain JSON
+        minimal_json = {
+            "worm_ref": f"worm:user:ness:{provider_id}",
+            "commitment": commitment,
+            "capabilities": 7,  # bitfield: non-voip=1, instant=2, region-us=4
+            "rev": 1
         }
         
         # Register via emercoin-cli
-        cmd = f'emercoin-cli name_new "sms:{phone_number}" \'{json.dumps(nv_record)}\' 365'
+        cmd = f'emercoin-cli name_new "ness:sms:listing:{opaque_id}" \'{json.dumps(minimal_json)}\' 365'
         os.system(cmd)
+        
+        # Store off-chain record locally or publish to IPFS/gateway
+        with open(f'listings/{opaque_id}.json', 'w') as f:
+            json.dump(offchain_record, f, indent=2)
         
     def listen_for_sms(self):
         """Monitor for incoming SMS"""
@@ -449,7 +513,15 @@ On-chain value (minimal JSON):
 Notes:
 
 - Do not publish E.164, keys, endpoints, or pricing in clear on-chain.
-- `capabilities` is a bitfield (e.g., non-voip=1, instant=2, region-us=4, voice-fwd=8).
+- `capabilities` is a bitfield:
+  - `1` (0x01): non-VOIP (real SIM)
+  - `2` (0x02): instant delivery
+  - `4` (0x04): region-us
+  - `8` (0x08): SMS-only tier available
+  - `16` (0x10): voice calls supported
+  - `32` (0x20): video calls supported
+  - `64` (0x40): ENUM/SIP routing
+  - Example: `capabilities: 27` = non-voip + instant + region-us + SMS-only (1+2+4+8+16)
 - The canonical off-chain record (signed by provider) contains operational details and is verified against `commitment`.
 
 Publish:
@@ -505,6 +577,120 @@ On-chain value:
 - 🌎 HTTPS: `https://gateway.ness.cx`
 - 🔌 WebSocket: `wss://gateway.ness.cx/ws`
 - 🧭 EmerDNS mirror: `https://gateway.private.ness` and `wss://gateway.private.ness/ws`
+- 📞 SIP (voice/video): `sip:gateway@gateway.ness.cx` (via Skywire)
+
+---
+
+## 📞 Voice/Video Call Flow (SMS+Voice/Video Tier)
+
+### Architecture
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Caller (PSTN/Mobile)                                   │
+│  Dials: +1234567890                                     │
+└─────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────┐
+│  Provider's Real SIM Card                               │
+│  Receives incoming call                                 │
+└─────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────┐
+│  Provider Gateway (Gammu/Asterisk)                      │
+│  - Looks up rental mapping (local encrypted DB)         │
+│  - Finds renter's SIP endpoint                          │
+│  - Encrypts call metadata + audio stream                │
+└─────────────────────────────────────────────────────────┘
+                            ↓ (via Skywire)
+┌─────────────────────────────────────────────────────────┐
+│  Gateway Relay (gateway.ness.cx)                        │
+│  - Receives encrypted SIP INVITE                        │
+│  - Routes to renter via Skywire tunnel                  │
+└─────────────────────────────────────────────────────────┘
+                            ↓ (via Skywire)
+┌─────────────────────────────────────────────────────────┐
+│  Renter's SIP Client (Antisip/Linphone)                 │
+│  - Receives call via Skywire                            │
+│  - Decrypts with renter's private key                   │
+│  - Rings phone/computer                                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Number Assignment
+
+**When renter selects SMS+Voice/Video tier:**
+
+1. Provider assigns a real E.164 number from their pool (off-chain)
+2. Renter receives:
+   - The actual phone number (e.g., +1234567890)
+   - SIP credentials for their client
+   - Rental duration and pricing
+3. Renter configures Antisip/Linphone with:
+   - SIP server: `gateway.ness.cx` (via Skywire)
+   - Username: `<renter_id>`
+   - Password: `<ephemeral_credential>`
+4. Renter gives out the number to contacts
+5. Incoming calls/SMS route: `PSTN → Provider SIM → Gateway → Skywire → Renter`
+
+### ENUM Integration (Optional)
+
+Providers can publish ENUM records for advanced routing:
+
+```bash
+# ENUM record points to provider's gateway (not directly to renter)
+emercoin-cli name_new "enum:0.9.8.7.6.5.4.3.2.1.e164.arpa" \
+  'NAPTR 100 10 "u" "E2U+sip" "!^.*$!sip:gateway@gateway.ness.cx!" .' 365
+```
+
+**Privacy note:** ENUM records are public but only reveal the provider's gateway endpoint, not the renter's identity or SIP credentials.
+
+### Outbound Calls
+
+**Renter can make outbound calls:**
+
+1. Renter initiates call via SIP client
+2. Call routes via Skywire to gateway
+3. Gateway forwards to provider's SIM
+4. Provider's SIM makes PSTN call
+5. Caller ID shows the rented number (+1234567890)
+
+**Privacy:** Provider sees call metadata (destination, duration) but audio is encrypted end-to-end if both parties use SIP/SRTP.
+
+### Video Calls
+
+**For video-enabled tiers:**
+
+- Uses SIP + RTP/SRTP for media
+- Video codecs: H.264, VP8, VP9
+- Bandwidth: ~1-2 Mbps per direction
+- Routed via Skywire (provider doesn't see video content)
+
+### Antisip Configuration
+
+**Renter's Antisip config (auto-generated by gateway):**
+
+```json
+{
+  "sip": {
+    "account": {
+      "username": "<renter_id>",
+      "password": "<ephemeral_credential>",
+      "domain": "gateway.ness.cx",
+      "proxy": "sip:gateway.ness.cx:5060",
+      "transport": "skywire"
+    },
+    "assigned_number": "+1234567890",
+    "rental_expires": 1699564800
+  },
+  "enum": {
+    "enabled": false,
+    "comment": "ENUM lookup handled by provider gateway"
+  }
+}
+```
+
+---
 
 ## 💸 Payments and Escrow
 
@@ -557,15 +743,32 @@ Notes:
 
 ---
 
-## 🚀 Non-Technical Quickstart (Linux/Windows, 5 steps)
+## 🚀 Non-Technical Quickstart
 
-Windows users: open Git Bash and run the same Linux/macOS commands below as-is.
+**Windows users:** Open Git Bash and run Linux/macOS commands as-is.
 
-1. Install Python tooling with uv (recommended)
+### Step 0: Prerequisites (one-time setup)
 
-- Linux/macOS:
+**Install Emercoin Core:**
 
 ```bash
+# Download from https://emercoin.com/downloads
+# Sync blockchain (may take hours)
+emercoin-cli getinfo  # verify it's running
+```
+
+**Clone repositories:**
+
+```bash
+git clone https://github.com/ness-network/privatenesstools
+git clone https://github.com/ness-network/privatenumer
+cd privatenumer
+```
+
+**Install Python tooling:**
+
+```bash
+# Linux/macOS/Windows Git Bash:
 curl -Ls https://astral.sh/uv/install.sh | sh
 exec "$SHELL" -l
 uv venv
@@ -573,74 +776,248 @@ uv pip install cryptography
 uv pip install git+https://github.com/ness-network/pyuheprng.git
 ```
 
-- Windows (PowerShell):
+---
 
-```powershell
-irm https://astral.sh/uv/install.ps1 | iex
-$env:Path += ";$env:USERPROFILE\.local\bin"
-uv venv
-uv pip install cryptography
-uv pip install git+https://github.com/ness-network/pyuheprng.git
-```
+### For Providers (offering SMS/voice service)
 
-1. Generate your identity with PrivatenessTools
-
-- Follow PrivatenessTools: `./keygen user <username> 5`
-- Export WORM: `./key worm ~/.privateness-keys/<username>.key.json`
-- Publish on-chain (Emercoin):
+#### Step 1: Generate identity
 
 ```bash
-emercoin-cli walletpassphrase "your-pass" 300
-emercoin-cli name_new "worm:user:ness:<username>" '<WORM_XML_ESCAPED>' 365
+cd ../privatenesstools
+./keygen user provider123 5
+./key worm ~/.privateness-keys/provider123.key.json
 ```
 
-1. Create a blind listing (privacy-first)
+This creates:
 
-- Build your signed off‑chain record (JSON) with your gateway URLs and pricing.
-- Compute its SHA‑256; put only this minimal JSON on-chain:
+- `~/.privateness-keys/provider123.key.json` (your keyfile)
+- WORM XML output (copy this)
 
-```json
-{"worm_ref":"worm:user:ness:<username>","commitment":"<sha256hex>","capabilities":7,"rev":1}
-```
+#### Step 2: Publish WORM on-chain
 
 ```bash
-emercoin-cli name_new "ness:sms:listing:<opaque_id>" '<MINIMAL_JSON>' 365
+# Get WORM XML from previous step
+WORM_XML=$(./key worm ~/.privateness-keys/provider123.key.json)
+
+# Publish to Emercoin NVS
+emercoin-cli walletpassphrase "your-wallet-password" 300
+emercoin-cli name_new "worm:user:ness:provider123" "$WORM_XML" 365
 ```
 
-1. Send and receive securely (no coding)
+#### Step 3: Create blind listing
 
-- Encrypt and sign (provider side):
+**Choose service tier:**
+
+- **SMS-only:** `capabilities: 11` (~0.01 EMC/day)
+- **SMS+Voice/Video:** `capabilities: 123` (~0.05 EMC/day)
+
+See [SERVICE_TIERS.md](SERVICE_TIERS.md) for comparison.
+
+**Build off-chain record:**
 
 ```bash
-python tools/ptool_encrypt.py --peer-pub-b64 <renter_X25519_pub_b64url> --in sms.txt --out sms.enc
-python tools/ptool_sign.py    --priv-b64     <provider_Ed25519_priv_b64url> --in sms.enc --out sms.sig
+cd ../privatenumer
+
+# Create off-chain listing (example for SMS-only)
+cat > listing_offchain.json <<'EOF'
+{
+  "provider_id": "provider123",
+  "service_tiers": {
+    "sms_only": {
+      "enabled": true,
+      "pricing": {
+        "per_sms": "0.001",
+        "rental_daily": "0.01",
+        "rental_weekly": "0.05",
+        "rental_monthly": "0.15"
+      }
+    }
+  },
+  "gateway_endpoints": {
+    "https": "https://gateway.ness.cx",
+    "wss": "wss://gateway.ness.cx/ws"
+  },
+  "features": ["non-voip", "instant"],
+  "timestamp": $(date +%s)
+}
+EOF
+
+# Sign it
+python tools/ptool_sign.py \
+  --priv-keyfile ~/.privateness-keys/provider123.key.json \
+  --priv-field ed25519.private \
+  --in listing_offchain.json \
+  --out listing_offchain.sig
+
+# Compute commitment
+COMMITMENT=$(cat listing_offchain.json | jq -c -S . | sha256sum | awk '{print $1}')
+
+# Generate opaque ID
+OPAQUE_ID=$(uuidgen | tr -d '-' | head -c 16)
+
+# Publish minimal on-chain JSON
+MINIMAL_JSON=$(cat <<EOF
+{"worm_ref":"worm:user:ness:provider123","commitment":"$COMMITMENT","capabilities":11,"rev":1}
+EOF
+)
+
+emercoin-cli name_new "ness:sms:listing:$OPAQUE_ID" "$MINIMAL_JSON" 365
+
+echo "Listing published: ness:sms:listing:$OPAQUE_ID"
+echo "Off-chain record: listing_offchain.json"
+echo "Signature: listing_offchain.sig"
 ```
 
-- Optional RANDPAY (defaults: 1 EMC, risk 1/6, 6h):
+#### Step 4: Receive and forward SMS
+
+**When SMS arrives at your SIM:**
 
 ```bash
-# provider
-emercoin-cli randpay_mkchap 1 6 21600
-# renter
-emercoin-cli randpay_mktx   "<chap>" 21600 0
-# provider
-emercoin-cli randpay_accept "<txhex>" 2
+# Encrypt for renter (using their keyfile)
+python tools/ptool_encrypt.py \
+  --peer-pub-keyfile ~/.privateness-keys/renter456.key.json \
+  --peer-pub-field x25519.public \
+  --in sms_received.txt \
+  --out sms.enc
+
+# Sign envelope
+python tools/ptool_sign.py \
+  --priv-keyfile ~/.privateness-keys/provider123.key.json \
+  --priv-field ed25519.private \
+  --in sms.enc \
+  --out sms.sig
+
+# Forward to gateway (via Skywire)
+curl -X POST https://gateway.ness.cx/forward \
+  -H "Content-Type: application/json" \
+  -d @- <<EOF
+{
+  "listing_id": "$OPAQUE_ID",
+  "envelope": "$(cat sms.enc)",
+  "signature": "$(cat sms.sig)"
+}
+EOF
 ```
 
-- Verify and decrypt (renter side):
+**Optional: RANDPAY micropayment**
 
 ```bash
-python tools/ptool_verify.py  --pub-b64  <provider_Ed25519_verify_b64url> --in sms.enc --sig sms.sig
-python tools/ptool_decrypt.py --priv-b64 <renter_X25519_priv_b64url>      --in sms.enc --out sms.txt
+# Create challenge
+CHAP=$(emercoin-cli randpay_mkchap 1 6 21600 | jq -r .reply)
+echo "Send this to renter: $CHAP"
+
+# After renter sends txhex, verify and accept
+emercoin-cli randpay_accept "<txhex_from_renter>" 2
 ```
 
-1. Use the gateway (clearnet or EmerDNS)
+---
 
-- HTTPS: `https://gateway.ness.cx`
-- WSS:   `wss://gateway.ness.cx/ws`
-- Mirror: `https://gateway.private.ness` and `wss://gateway.private.ness/ws`
+### For Renters/Users (mobile-first)
 
-Docker (coming next): we will provide an official Dockerfile and Compose recipe to run the tools and gateway client in containers. Keep using uv-based installs for now; the containerized flow will mirror these steps.
+**Renters use mobile apps — no terminal commands needed.**
+
+#### Step 1: Install apps
+
+**Android/iOS:**
+
+1. Install **Antisip** (SMS/voice client)
+   - Download from: [antisip.app](https://antisip.app) or app stores
+   - Handles: SMS reception, voice/video calls, encryption, signatures
+
+2. Install **Privateness Wallet** (for EMC payments)
+   - Download from: [wallet.ness.cx](https://wallet.ness.cx)
+   - Handles: RANDPAY micropayments, escrow, EMC balance
+
+#### Step 2: Create identity (in Antisip)
+
+**Open Antisip → Settings → Create Identity:**
+
+- App generates Ed25519 + X25519 keypairs
+- Encrypted backup to device storage
+- Optional: Export to Privateness Wallet for cross-device sync
+
+**No CLI, no terminal, no keyfiles to manage manually.**
+
+#### Step 3: Browse and rent a listing (in Antisip)
+
+**Open Antisip → Browse Listings:**
+
+1. App queries Emercoin NVS via gateway (over Skywire)
+2. Filter by:
+   - Service tier (SMS-only or SMS+Voice/Video)
+   - Region (USA, Europe, Asia)
+   - Price range
+   - Provider reputation
+3. Tap a listing to view details:
+   - Off-chain record (auto-fetched from gateway/IPFS)
+   - Commitment verification (automatic)
+   - Signature verification (automatic)
+   - Provider WORM lookup (automatic)
+4. Tap **Rent** → Choose duration (daily/weekly/monthly)
+5. Pay with Privateness Wallet:
+   - RANDPAY micropayment (1 EMC, 1/6 probability)
+   - Or escrow (for longer rentals)
+6. Done! Listing is now active.
+
+**For SMS+Voice/Video tier:**
+
+- App auto-configures SIP client
+- You receive a real phone number (e.g., +1234567890)
+- Give this number to contacts
+
+#### Step 4: Receive SMS/calls (automatic)
+
+**SMS-only tier:**
+
+- SMS arrives at provider's SIM
+- Provider encrypts + signs → forwards to gateway
+- Gateway routes via Skywire to your Antisip app
+- App decrypts + verifies signature
+- You see SMS in Antisip inbox
+
+**SMS+Voice/Video tier:**
+
+- Same as above, plus:
+- Voice calls ring in Antisip (via SIP over Skywire)
+- Video calls supported (H.264, VP8)
+- Outbound calls: dial from Antisip, caller ID shows your rented number
+
+**All encryption, signatures, and verification happen automatically in the app.**
+
+#### Step 5: Manage rentals (in Antisip)
+
+**Antisip → My Rentals:**
+
+- View active listings
+- Check expiration dates
+- Renew before expiration (auto-payment via Privateness Wallet)
+- View SMS/call history
+- Export receipts (signed delivery proofs)
+
+---
+
+### For Advanced Users (CLI/API)
+
+If you want to integrate programmatically or run your own client:
+
+---
+
+### Gateway Endpoints
+
+- **HTTPS:** `https://gateway.ness.cx`
+- **WSS:** `wss://gateway.ness.cx/ws`
+- **EmerDNS mirrors:** `https://gateway.private.ness`, `wss://gateway.private.ness/ws`
+
+### One-Click Script
+
+For the full automated flow, use the onboarding UI:
+
+```bash
+cd onboarding/ui
+python -m http.server 8000
+# Open http://localhost:8000 in browser
+# Click "Generate full script" button
+```
 
 ---
 
@@ -668,23 +1045,30 @@ python3 generate_keys.py
 # Edit config.json
 {
   "emc_address": "YOUR_EMC_ADDRESS",
-  "phone_number": "+1234567890",
+  "provider_id": "provider123",
   "pricing": {
     "per_sms": "0.001",
     "daily": "0.01",
     "weekly": "0.05",
     "monthly": "0.15"
   },
-  "features": ["non-voip", "instant", "telegram-forward"],
-  "modem_port": "/dev/ttyUSB0"
+  "features": ["non-voip", "instant"],
+  "modem_port": "/dev/ttyUSB0",
+  "gateway_endpoints": {
+    "https": "https://gateway.ness.cx",
+    "wss": "wss://gateway.ness.cx/ws"
+  }
 }
 ```
 
-#### Step 3: Register on Blockchain
+#### Step 3: Register Blind Listing on Blockchain
 
 ```bash
-# Register your number
-python3 provider.py register
+# Generate WORM and publish identity first
+python3 provider.py generate-identity
+
+# Register blind listing (privacy-first)
+python3 provider.py register-listing
 
 # Start gateway
 python3 provider.py start
@@ -696,9 +1080,10 @@ python3 provider.py start
 
 1. Visit `https://ness.cx/dashboard`
 2. Connect wallet (Emercoin address)
-3. Browse available numbers
-4. Rent number (payment via EMC)
-5. Receive SMS in dashboard
+3. Browse available blind listings (filtered by capabilities)
+4. Verify off-chain record against commitment
+5. Rent listing (payment via EMC or RANDPAY)
+6. Receive encrypted SMS in dashboard
 
 #### Option 2: API Integration
 
@@ -708,15 +1093,19 @@ curl -X POST https://gateway.ness.cx/auth \
   -H "Content-Type: application/json" \
   -d '{"emc_address":"YOUR_ADDRESS","signature":"SIGNED_CHALLENGE"}'
 
-# Browse available numbers
-curl https://gateway.ness.cx/numbers/available \
+# Browse available blind listings
+curl https://gateway.ness.cx/listings/available \
   -H "Authorization: Bearer YOUR_API_KEY"
 
-# Rent a number
+# Get off-chain record for a listing
+curl https://gateway.ness.cx/listings/<opaque_id>/offchain \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Rent a listing
 curl -X POST https://gateway.ness.cx/rent \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"number":"+1234567890","duration":"weekly"}'
+  -d '{"listing_id":"<opaque_id>","duration":"weekly"}'
 
 # Retrieve SMS
 curl https://gateway.ness.cx/sms \

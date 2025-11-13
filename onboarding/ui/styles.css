@@ -54,6 +54,18 @@ body{
 /* Achievements glow when unlocked */
 .step.done .achv{opacity:1;filter:drop-shadow(0 0 6px var(--accent))}
 
+/* Service tier selector */
+.tier-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.tier-option{cursor:pointer}
+.tier-option input[type=radio]{display:none}
+.tier-card{background:#0b1118;border:2px solid #1f2937;border-radius:8px;padding:12px;transition:all 0.2s}
+.tier-option input:checked + .tier-card{border-color:var(--accent);background:#0d1720}
+.tier-card h3{margin:0 0 6px 0;font-size:16px}
+.tier-card p{margin:0 0 8px 0;color:var(--sub);font-size:13px}
+.tier-features{list-style:none;padding:0;margin:8px 0;font-size:12px}
+.tier-features li{margin:4px 0}
+.tier-card code{background:#0a0f15;padding:2px 6px;border-radius:4px;font-size:11px;color:var(--accent)}
+
 /* Modal */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
 .modal.hidden{display:none}
